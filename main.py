@@ -29,7 +29,6 @@ def detect_gesture(hand_landmarks, img_width, img_height):
     distance = find_dig((big_x, big_y), (ukaz_x, ukaz_y))
     return distance
 
-
 def set_volume(distance, max_distance, min_distance):
     distance = max(min_distance, min(max_distance, distance))
     normalized_distance = (distance - min_distance) / (max_distance - min_distance)
@@ -38,9 +37,13 @@ def set_volume(distance, max_distance, min_distance):
     current_volume = volume.GetMasterVolumeLevel()
     return current_volume
 
-min_distance = 20  
+min_distance = 20
 max_distance = 150
-previous_volume = None  
+previous_volume = None
+wrist_y_threshold = 30
+last_wrist_y = None
+volume_locked = False
+locked_volume = None
 
 while cap.isOpened():
     ret, frame = cap.read()
@@ -54,17 +57,51 @@ while cap.isOpened():
     if results.multi_hand_landmarks:
         for hand_landmarks in results.multi_hand_landmarks:
             mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-            distance = detect_gesture(hand_landmarks, image_width, image_height)
+            wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
+            wrist_y = int(wrist.y * image_height)
 
-            if distance is not None:
-                current_volume = set_volume(distance, max_distance, min_distance)
-                volume_percentage = int(((current_volume - minVol) / (maxVol - minVol)) * 100)
-                volume_text = f"Volume: {volume_percentage}%"
-                cv2.putText(frame, volume_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            if last_wrist_y is None:
+                last_wrist_y = wrist_y
+            y_difference = wrist_y - last_wrist_y
 
-                if previous_volume is None or abs(current_volume - previous_volume) > 0.5:
-                    previous_volume = current_volume
-                    print(f"Volume changed: {volume_percentage}%")
+            if y_difference > wrist_y_threshold and not volume_locked:
+                volume_locked = True
+                locked_volume = previous_volume
+                print("Volume locked (downward motion).")
+
+            elif y_difference < -wrist_y_threshold and volume_locked:
+                volume_locked = False
+                locked_volume = None
+                print("Volume unlocked (upward motion).")
+
+            text_color = (0, 255, 0) 
+            if volume_locked:
+                text_color = (0, 0, 255)  
+
+            if volume_locked and locked_volume is not None:
+                volume_percentage = int(((locked_volume - minVol) / (maxVol - minVol)) * 100)
+                volume_text = f"Volume: {volume_percentage}% (Locked)"
+            else:
+                distance = detect_gesture(hand_landmarks, image_width, image_height)
+                if distance is not None:
+                    current_volume = set_volume(distance, max_distance, min_distance)
+                    volume_percentage = int(((current_volume - minVol) / (maxVol - minVol)) * 100)
+                    volume_text = f"Volume: {volume_percentage}%"
+                else:
+                    volume_text = "Volume: N/A"
+
+            cv2.putText(frame, volume_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2)
+
+            if not volume_locked:
+                distance = detect_gesture(hand_landmarks, image_width, image_height)
+
+                if distance is not None:
+                    current_volume = set_volume(distance, max_distance, min_distance)
+                    if previous_volume is None or abs(current_volume - previous_volume) > 0.5:
+                        previous_volume = current_volume
+
+            last_wrist_y = wrist_y
+
 
     cv2.imshow('window: ', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
