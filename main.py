@@ -18,6 +18,11 @@ maxVol = volRange[1]
 
 cap = cv2.VideoCapture(0)
 
+roi_x = 230
+roi_y = 10
+roi_width = 400
+roi_height = 400
+
 def find_dig(point_1, point_2):
     return sqrt((point_1[0]-point_2[0])**2 + (point_1[1]-point_2[1])**2)
 
@@ -50,13 +55,28 @@ while cap.isOpened():
     if not ret:
         break
 
-    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    image_height, image_width, _ = frame.shape
+    roi = frame[roi_y:roi_y + roi_height, roi_x:roi_x + roi_width]
+
+    image_rgb = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
+    image_height, image_width = roi.shape[:2]
     results = hands.process(image_rgb)
 
     if results.multi_hand_landmarks:
+        filtered_hand_landmarks = []
         for hand_landmarks in results.multi_hand_landmarks:
-            mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+            is_inside_roi = False
+            for landmark in hand_landmarks.landmark:
+                x = int(landmark.x * image_width) 
+                y = int(landmark.y * image_height)
+                if 0 <= x <= image_width and 0 <= y <= image_height: 
+                    is_inside_roi = True
+                    break
+            if is_inside_roi:
+                filtered_hand_landmarks.append(hand_landmarks)
+
+        for hand_landmarks in filtered_hand_landmarks:
+            mp_drawing.draw_landmarks(roi, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+
             wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
             wrist_y = int(wrist.y * image_height)
 
@@ -74,9 +94,9 @@ while cap.isOpened():
                 locked_volume = None
                 print("Volume unlocked (upward motion).")
 
-            text_color = (0, 255, 0) 
+            text_color = (0, 255, 0)
             if volume_locked:
-                text_color = (0, 0, 255)  
+                text_color = (0, 0, 255)
 
             if volume_locked and locked_volume is not None:
                 volume_percentage = int(((locked_volume - minVol) / (maxVol - minVol)) * 100)
@@ -90,7 +110,7 @@ while cap.isOpened():
                 else:
                     volume_text = "Volume: N/A"
 
-            cv2.putText(frame, volume_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2)
+            cv2.putText(roi, volume_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2)
 
             if not volume_locked:
                 distance = detect_gesture(hand_landmarks, image_width, image_height)
@@ -102,6 +122,9 @@ while cap.isOpened():
 
             last_wrist_y = wrist_y
 
+    cv2.rectangle(frame, (roi_x, roi_y), (roi_x + roi_width, roi_y + roi_height), (255, 0, 0), 2)
+
+    frame[roi_y:roi_y + roi_height, roi_x:roi_x + roi_width] = roi
 
     cv2.imshow('window: ', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
