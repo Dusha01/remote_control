@@ -5,6 +5,8 @@ import pycaw.pycaw as pycaw
 from comtypes import CLSCTX_ALL
 from ctypes import cast, POINTER
 
+#----------------------------------------------------------------------
+
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(max_num_hands=2, min_detection_confidence=0.7)
 mp_drawing = mp.solutions.drawing_utils
@@ -18,10 +20,10 @@ maxVol = volRange[1]
 
 cap = cv2.VideoCapture(0)
 
-roi_x = 230
+roi_x = 250
 roi_y = 10
-roi_width = 400
-roi_height = 400
+roi_width = 350
+roi_height = 350
 
 def find_dig(point_1, point_2):
     return sqrt((point_1[0]-point_2[0])**2 + (point_1[1]-point_2[1])**2)
@@ -122,13 +124,15 @@ while cap.isOpened():
 
             last_wrist_y = wrist_y
 
-    cv2.rectangle(frame, (roi_x, roi_y), (roi_x + roi_width, roi_y + roi_height), (255, 0, 0), 2)
+    cv2.rectangle(frame, (roi_x, roi_y), (roi_x + roi_width, roi_y + roi_height), (255, 255, 255), 2)
 
     frame[roi_y:roi_y + roi_height, roi_x:roi_x + roi_width] = roi
 
     cv2.imshow('window: ', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+
+#----------------------------------------------------------------------
 
 cap.release()
 cv2.destroyAllWindows()
