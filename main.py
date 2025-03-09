@@ -50,7 +50,7 @@ def set_volume(distance, max_distance, min_distance):
     volume.SetMasterVolumeLevel(volume_level, None)
     current_volume = volume.GetMasterVolumeLevel()
     return current_volume
-
+#2
 def detect_stop_one(hand_landmarks, img_width, img_height, threshold=0.07):
     pinky_tip = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_TIP]
     pinky_pip = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_PIP]
