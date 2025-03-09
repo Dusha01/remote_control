@@ -97,4 +97,4 @@ This project implements a hand gesture recognition system to control the volume 
 
 ## License
 
-[MIT License](LICENSE) (Replace with the actual license file if you have one.)
+[License](LICENSE) (Replace with the actual license file if you have one.)
